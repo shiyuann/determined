@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/determined-ai/determined/master/internal/db"
+	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/proto/pkg/apiv1"
 	"github.com/determined-ai/determined/proto/pkg/checkpointv1"
 )
@@ -26,6 +27,42 @@ func (a *apiServer) GetCheckpoint(
 		return resp,
 			errors.Wrapf(err, "error fetching checkpoint %s from database", req.CheckpointUuid)
 	}
+}
+
+func (a *apiServer) CreateCheckpoint(
+	_ context.Context, req *apiv1.CreateCheckpointRequest,
+) (*apiv1.CreateCheckpointResponse, error) {
+	log.Infof("adding checkpoint %s (trial %d, batch %d)",
+		req.Checkpoint.Uuid, req.Checkpoint.TrialId, req.Checkpoint.BatchNumber)
+	modelC, err := model.CheckpointFromProto(req.Checkpoint)
+	if err != nil {
+		return nil, errors.Wrapf(
+			err, "error adding checkpoint %s (trial %d, batch %d) in database",
+			req.Checkpoint.Uuid, req.Checkpoint.TrialId, req.Checkpoint.BatchNumber)
+	}
+	err = a.m.db.AddCheckpoint(modelC)
+	return &apiv1.CreateCheckpointResponse{Checkpoint: req.Checkpoint},
+		errors.Wrapf(err, "error adding checkpoint %s (trial %d, batch %d) in database",
+			req.Checkpoint.Uuid, req.Checkpoint.TrialId, req.Checkpoint.BatchNumber)
+}
+
+func (a *apiServer) UpdateCheckpoint(
+	_ context.Context, req *apiv1.UpdateCheckpointRequest,
+) (*apiv1.UpdateCheckpointResponse, error) {
+	log.Infof("updating checkpoint %s (trial %d, batch %d) state %s",
+		req.Checkpoint.Uuid, req.Checkpoint.TrialId, req.Checkpoint.BatchNumber,
+		req.Checkpoint.State)
+	modelC, err := model.CheckpointFromProto(req.Checkpoint)
+	if err != nil {
+		return nil, errors.Wrapf(
+			err, "error updating checkpoint %s (trial %d, batch %d) in database",
+			req.Checkpoint.Uuid, req.Checkpoint.TrialId, req.Checkpoint.BatchNumber)
+	}
+	err = a.m.db.UpdateCheckpoint(
+		int(req.Checkpoint.TrialId), int(req.Checkpoint.BatchNumber), *modelC)
+	return &apiv1.UpdateCheckpointResponse{Checkpoint: req.Checkpoint},
+		errors.Wrapf(err, "error updating checkpoint %s (trial %d, batch %d) in database",
+			req.Checkpoint.Uuid, req.Checkpoint.TrialId, req.Checkpoint.BatchNumber)
 }
 
 func (a *apiServer) PostCheckpointMetadata(
