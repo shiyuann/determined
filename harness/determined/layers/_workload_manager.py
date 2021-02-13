@@ -178,10 +178,21 @@ class _TrialWorkloadManager(WorkloadManager):
             if in_response.get("stop_requested", False):
                 out_response["exited_reason"] = "USER_CANCELED"
 
-            # Send the response up.
+            t_mgr.complete(metrics=metrics)
+
+            # Send the response up to the socket manager.
             respond(out_response)
 
-        yield wkld, [], _respond
+        with det.TrainingMetricManager(
+            master_url=self.env.get_unary_host(),
+            experiment_id=self.env.get_experiment_id(),
+            trial_id=self.env.get_trial_id(),
+            step_id=wkld.step_id,
+            start_batch=wkld.total_batches_processed,
+            end_batch=wkld.total_batch(),
+        ) as t_mgr:
+            # Yield the workload to the framework layer.
+            yield wkld, [], _respond
 
     def yield_compute_validation_metrics(
         self, wkld: workload.Workload, respond: workload.ResponseFunc
@@ -285,12 +296,22 @@ class _TrialWorkloadManager(WorkloadManager):
             if in_response.get("stop_requested", False):
                 out_response["exited_reason"] = "USER_CANCELED"
 
+            v_mgr.complete(metrics=metrics)
+
+            # Send the response up to the socket manager.
             respond(out_response)
 
         for callback in self.callbacks:
             callback.on_validation_step_begin(wkld.step_id, wkld.total_batches_processed)
 
-        yield wkld, [], _respond
+        with det.ValidationMetricManager(
+            master_url=self.env.get_unary_host(),
+            experiment_id=self.env.get_experiment_id(),
+            trial_id=self.env.get_trial_id(),
+            total_batches=wkld.total_batch(),
+        ) as v_mgr:
+            # Yield the workload to the framework layer.
+            yield wkld, [], _respond
 
     def yield_checkpoint_model(
         self, wkld: workload.Workload, respond: workload.ResponseFunc
@@ -307,14 +328,26 @@ class _TrialWorkloadManager(WorkloadManager):
 
         def _respond(checkpoint_info: workload.Response) -> None:
             checkpoint_info = cast(Dict[str, Any], checkpoint_info)
+            resources = storage.StorageManager._list_directory(path)
+            framework = checkpoint_info.get("framework", "")
+            format = checkpoint_info.get("format", "")
+            end_time = _current_timestamp()
+
             metadata = storage.StorageMetadata(
                 storage_id,
-                storage.StorageManager._list_directory(path),
-                checkpoint_info.get("framework", ""),
-                checkpoint_info.get("format", ""),
+                resources,
+                framework,
+                format,
             )
 
-            logging.info("Saved trial to checkpoint {}".format(metadata.storage_id))
+            ckpt_mgr.complete(
+                uuid=storage_id,
+                resources=resources,
+                framework=framework,
+                format=format,
+                metadata=metadata.__dict__,
+            )
+
             self.tensorboard_mgr.sync()
 
             nonlocal message
@@ -322,12 +355,22 @@ class _TrialWorkloadManager(WorkloadManager):
                 "type": "WORKLOAD_COMPLETED",
                 "workload": wkld,
                 "start_time": start_time,
-                "end_time": _current_timestamp(),
+                "end_time": end_time,
                 "metrics": metadata,
             }
 
-        with self.storage_mgr.store_path() as (storage_id, path):
-            yield wkld, [pathlib.Path(path)], _respond
+        with det.CheckpointManager(
+            master_url=self.env.get_unary_host(),
+            trial_id=self.env.get_trial_id(),
+            batch_number=wkld.total_batch(),
+            experiment_config=self.env.get_experiment_config(),
+            experiment_id=self.env.get_experiment_id(),
+            hparams=self.env.get_hparams(),
+        ) as ckpt_mgr:
+
+            with self.storage_mgr.store_path() as (storage_id, path):
+                # Yield the workload to the framework layer.
+                yield wkld, [pathlib.Path(path)], _respond
 
         # Because the messaging is synchronous, the layer below us must have called _respond.
         check_not_none(message, "response function did not get called")
