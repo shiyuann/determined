@@ -6,7 +6,6 @@ import (
 
 	"github.com/determined-ai/determined/master/internal/db"
 	"github.com/determined-ai/determined/master/pkg/model"
-	"github.com/determined-ai/determined/master/pkg/workload"
 )
 
 func checkpointFromTrialIDOrUUID(
@@ -38,21 +37,4 @@ func checkpointFromTrialIDOrUUID(
 		}
 	}
 	return checkpoint, nil
-}
-
-// checkpointFromCheckpointMetrics converts a workload.CheckpointMetrics into a model.Checkpoint
-// with the UUID, and Resources fields filled out.
-func checkpointFromCheckpointMetrics(metrics workload.CheckpointMetrics) model.Checkpoint {
-	resources := model.JSONObj{}
-	for key, value := range metrics.Resources {
-		resources[key] = value
-	}
-
-	id := metrics.UUID.String()
-	return model.Checkpoint{
-		UUID:      &id,
-		Resources: resources,
-		Framework: metrics.Framework,
-		Format:    metrics.Format,
-	}
 }
