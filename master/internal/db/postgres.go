@@ -1853,6 +1853,34 @@ func (db *PgDB) withTransaction(name string, exec func(tx *sql.Tx) error) error 
 	return nil
 }
 
+// GetExperimentBestValidation returns the best validation metrics.
+func (db *PgDB) GetExperimentBestValidation(expID int) (*model.Validation, error) {
+	validation := &model.Validation{}
+	err := db.query(`
+WITH const AS (
+    SELECT
+           config->'searcher'->>'metric' AS metric_name,
+           (SELECT
+               CASE WHEN coalesce((config->'searcher'->>'smaller_is_better')::boolean, true)
+			   THEN 1
+			   ELSE -1 END) AS sign
+    FROM experiments e
+  	WHERE e.id = $1
+), best_validation AS (
+	SELECT
+		v.id AS id,
+		v.end_time AS end_time,
+		const.sign * (v.metrics->'validation_metrics'->>const.metric_name)::float8 AS metric
+	FROM validations v JOIN trials t ON v.id = t.best_validation_id, const
+	WHERE t.experiment_id = $1
+	ORDER BY metric ASC, end_time DESC
+	LIMIT 1
+)
+SELECT * FROM validations v WHERE id = (SELECT bv.id FROM best_validation bv);
+`, expID, validation)
+	return validation, errors.Wrapf(err, "error getting best validation for experiment %d", expID)
+}
+
 // SetTrialBestValidation sets `public.trials.best_validation_id` to the `id` of the row in
 // `public.validations` corresponding to the trial's best validation.
 func (db *PgDB) SetTrialBestValidation(id int) error {

@@ -8,7 +8,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/determined-ai/determined/master/pkg/actor"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/searcher"
 )
@@ -20,7 +19,8 @@ type (
 		BatchesSinceLastCkpt    int `json:"batches_since_last_chkp"`
 		TotalBatchesProcessed   int `json:"total_batches_processed"`
 
-		NeedInitialValidation  bool `json:"need_initial_validation"`
+		NeedInitialValidation bool `json:"need_initial_validation"`
+		// TODO: Remove this field.
 		NeedPostValidationCkpt bool `json:"need_post_validation_ckpt"`
 
 		ExitingEarly bool `json:"exiting_early"`
@@ -29,7 +29,7 @@ type (
 		CurOpIdx  int `json:"cur_op_idx"`
 		CurStepID int `json:"cur_step_id"`
 
-		LatestSnapshot   *trialWorkloadSequencerState `json:"latest_snapshot"`
+		LatestSnapshot *trialWorkloadSequencerState `json:"latest_snapshot"`
 	}
 
 	// trialWorkloadSequencer manages transforming the work requested by the searcher into Workloads
@@ -48,7 +48,6 @@ type (
 		experiment *model.Experiment
 		create     searcher.Create
 
-		checkpointPolicy    string
 		minValidationPeriod model.Length
 		minCheckpointPeriod model.Length
 
@@ -73,7 +72,6 @@ func newTrialWorkloadSequencer(
 				NeedInitialValidation: exp.Config.PerformInitialValidation,
 			},
 		},
-		checkpointPolicy:    exp.Config.CheckpointPolicy,
 		minValidationPeriod: exp.Config.MinValidationPeriod,
 		minCheckpointPeriod: exp.Config.MinCheckpointPeriod,
 		unitContext: model.NewUnitContext(
@@ -111,7 +109,7 @@ func (s *trialWorkloadSequencer) SetTrialID(trialID int) {
 // It snapshots this state whenever we've just completed a checkpoint, and should be the only method
 // to alter the snapshot, too.
 func (s *trialWorkloadSequencer) WorkloadCompleted(
-	msg workload.CompletedMessage, isBestValFuture actor.Response,
+	msg workload.CompletedMessage,
 ) (op searcher.Runnable, metrics interface{}, err error) {
 	// Checkpoints are allowed even if they were not specified by sequencer.workload(). This can
 	// occur after a call to precloseCheckpointWorkload or during a replay of a trial that was
@@ -149,7 +147,7 @@ func (s *trialWorkloadSequencer) WorkloadCompleted(
 		op, metrics := s.checkpointModelCompleted(msg)
 		return op, metrics, nil
 	case workload.ComputeValidationMetrics:
-		op, metrics := s.computeValidationMetricsCompleted(msg, isBestValFuture)
+		op, metrics := s.computeValidationMetricsCompleted(msg)
 		return op, metrics, nil
 	default:
 		return nil, nil, errors.New("invalid operation for trialWorkloadSequencer")
@@ -177,21 +175,11 @@ func (s *trialWorkloadSequencer) runStepCompleted(msg workload.CompletedMessage)
 // computeValidationMetricsCompleted updates the internal state of the sequencer to account for a
 // completed COMPUTE_VALIDATION_METRICS worklaod.
 func (s *trialWorkloadSequencer) computeValidationMetricsCompleted(
-	msg workload.CompletedMessage, isBestValFuture actor.Response,
+	msg workload.CompletedMessage,
 ) (searcher.Runnable, interface{}) {
 	s.BatchesSinceLastVal = 0
 	if s.NeedInitialValidation {
 		s.NeedInitialValidation = false
-	}
-	if s.BatchesSinceLastCkpt != 0 {
-		switch s.checkpointPolicy {
-		case model.AllCheckpointPolicy:
-			s.NeedPostValidationCkpt = true
-		case model.BestCheckpointPolicy:
-			if isBestValidation, ok := isBestValFuture.Get().(bool); ok && isBestValidation {
-				s.NeedPostValidationCkpt = true
-			}
-		}
 	}
 	if tOp, ok := s.ops[s.CurOpIdx].(searcher.Validate); ok {
 		s.CurOpIdx++
@@ -215,7 +203,6 @@ func (s *trialWorkloadSequencer) checkpointModelCompleted(
 ) (searcher.Runnable, interface{}) {
 	defer s.snapshotState()
 	s.BatchesSinceLastCkpt = 0
-	s.NeedPostValidationCkpt = false
 	return nil, nil
 }
 
@@ -237,10 +224,6 @@ func (s trialWorkloadSequencer) Workload() (workload.Workload, error) {
 	}
 
 	if s.postGracefulStopCheckpointNeeded() {
-		return s.checkpoint(), nil
-	}
-
-	if s.postValidationCheckpointNeeded() {
 		return s.checkpoint(), nil
 	}
 
@@ -377,10 +360,6 @@ func (s *trialWorkloadSequencer) minCheckpointNeeded() bool {
 
 func (s *trialWorkloadSequencer) postGracefulStopCheckpointNeeded() bool {
 	return s.GracefulStop && s.BatchesSinceLastCkpt != 0
-}
-
-func (s *trialWorkloadSequencer) postValidationCheckpointNeeded() bool {
-	return s.NeedPostValidationCkpt && s.BatchesSinceLastCkpt != 0
 }
 
 func (s *trialWorkloadSequencer) batchesUntilCkptNeeded() int {

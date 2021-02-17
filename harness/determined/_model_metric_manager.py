@@ -167,7 +167,7 @@ class ValidationMetricManager:
             raise Exception(r)
         return self
 
-    def complete(self, metrics: Dict[str, Any]) -> None:
+    def complete(self, metrics: Dict[str, Any]) -> bool:
         logging.info(
             f"Finishing saving validation metrics for "
             f"trial {self.trial_id} batch {self.total_batches}."
@@ -195,6 +195,7 @@ class ValidationMetricManager:
             raise Exception(r)
 
         self.state = "STATE_COMPLETED"
+        return bool(r.json()["is_experiment_best"])
 
     def failed(self) -> None:
         logging.info(

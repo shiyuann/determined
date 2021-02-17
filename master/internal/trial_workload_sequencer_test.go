@@ -165,7 +165,7 @@ checkpoint_policy: none
 	assert.Assert(t, s.PrecloseCheckpointWorkload() == nil)
 
 	// Complete first RUN_STEP.
-	op, _, err := s.WorkloadCompleted(workload.CompletedMessage{Workload: trainWorkload1}, nil)
+	op, _, err := s.WorkloadCompleted(workload.CompletedMessage{Workload: trainWorkload1})
 	assert.NilError(t, err)
 	assert.Equal(t, op, nil, "should not have finished %v yet", op)
 	w, err = s.Workload()
@@ -174,7 +174,7 @@ checkpoint_policy: none
 	assert.Equal(t, *s.PrecloseCheckpointWorkload(), checkpointWorkload1)
 
 	// Complete second RUN_STEP.
-	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{Workload: trainWorkload2}, nil)
+	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{Workload: trainWorkload2})
 	assert.NilError(t, err)
 	assert.Equal(t, op, nil, "should not have finished %v yet", op)
 	w, err = s.Workload()
@@ -183,7 +183,7 @@ checkpoint_policy: none
 	assert.Equal(t, *s.PrecloseCheckpointWorkload(), checkpointWorkload2)
 
 	// Complete first COMPUTE_VALIDATION_METRICS.
-	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{Workload: validationWorkload2}, nil)
+	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{Workload: validationWorkload2})
 	assert.NilError(t, err)
 	assert.Equal(t, op, nil, "should not have finished %v yet", op)
 	w, err = s.Workload()
@@ -191,14 +191,14 @@ checkpoint_policy: none
 	assert.Equal(t, w, trainWorkload3)
 
 	// Complete third and fourth RUN_STEP.
-	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{Workload: trainWorkload3}, nil)
+	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{Workload: trainWorkload3})
 	assert.NilError(t, err)
 	assert.Equal(t, op, nil, "should not have finished %v yet", op)
 	w, err = s.Workload()
 	assert.NilError(t, err)
 	assert.Equal(t, w, trainWorkload4)
 
-	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{Workload: trainWorkload4}, nil)
+	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{Workload: trainWorkload4})
 	assert.NilError(t, err)
 	assert.Equal(t, op, nil, "should not have finished %v yet", op)
 	w, err = s.Workload()
@@ -209,7 +209,7 @@ checkpoint_policy: none
 	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{
 		Workload:          validationWorkload4,
 		ValidationMetrics: &workload.ValidationMetrics{},
-	}, nil)
+	})
 	assert.NilError(t, err)
 	assert.Equal(t, op, nil, "should not have finished %v yet", op)
 	w, err = s.Workload()
@@ -221,13 +221,13 @@ checkpoint_policy: none
 	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{
 		Workload:          checkpointWorkload4,
 		CheckpointMetrics: &fakeCheckpointMetrics,
-	}, nil)
+	})
 	assert.NilError(t, err)
 	assert.Equal(t, op, nil, "should not have finished %v yet", op)
 	assert.Assert(t, s.PrecloseCheckpointWorkload() == nil)
 
 	// Complete last RUN_STEP.
-	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{Workload: trainWorkload5}, nil)
+	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{Workload: trainWorkload5})
 	assert.NilError(t, err)
 	assert.Equal(t, op, train, "expected searcher op to be returned")
 	w, err = s.Workload()
@@ -243,7 +243,7 @@ checkpoint_policy: none
 	assert.Equal(t, w, trainWorkload5)
 
 	// Replay last RUN_STEP after rollback.
-	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{Workload: trainWorkload5}, nil)
+	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{Workload: trainWorkload5})
 	assert.NilError(t, err)
 	assert.Equal(t, op, train, "expected searcher op to be returned")
 	w, err = s.Workload()
@@ -255,7 +255,7 @@ checkpoint_policy: none
 	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{
 		Workload:          checkpointWorkload5,
 		CheckpointMetrics: &fakeCheckpointMetrics,
-	}, nil)
+	})
 	assert.NilError(t, err)
 	assert.Equal(t, op, nil, "should not have finished %v yet", op)
 	w, err = s.Workload()
@@ -266,7 +266,7 @@ checkpoint_policy: none
 	op, _, err = s.WorkloadCompleted(workload.CompletedMessage{
 		Workload:          validationWorkload5,
 		ValidationMetrics: &workload.ValidationMetrics{},
-	}, nil)
+	})
 	assert.NilError(t, err)
 	assert.Equal(t, op, validate, "expected searcher op to be returned")
 	assert.Assert(t, s.PrecloseCheckpointWorkload() == nil)
@@ -305,7 +305,7 @@ func TestTrialWorkloadSequencerFailedWorkloads(t *testing.T) {
 			NumBatches:            expConfig.SchedulingUnit,
 			PriorBatchesProcessed: 0,
 		},
-	}, nil)
+	})
 	assert.NilError(t, err)
 	if op != nil {
 		t.Fatalf("received unexpected op: %s", op)
@@ -322,7 +322,7 @@ func TestTrialWorkloadSequencerFailedWorkloads(t *testing.T) {
 		},
 		CheckpointMetrics: nil,
 		ExitedReason:      &exitedReason,
-	}, nil)
+	})
 	assert.NilError(t, err)
 	assert.Equal(t, op, nil, "should not have finished %v yet", op)
 	assert.Equal(t, s.ExitingEarly, true, "should have been exiting early")
@@ -354,7 +354,7 @@ func TestTrialWorkloadSequencerOperationLessThanBatchSize(t *testing.T) {
 			NumBatches:            1,
 			PriorBatchesProcessed: 0,
 		},
-	}, nil)
+	})
 	assert.NilError(t, err)
 	assert.Equal(t, op, train)
 }

@@ -650,10 +650,7 @@ func (t *trial) processCompletedWorkload(ctx *actor.Context, msg workload.Comple
 		unitsCompleted:   model.UnitsFromBatches(msg.Workload.NumBatches, t.sequencer.unitContext),
 	}
 
-	isBestValidation := ctx.Ask(ctx.Self().Parent(), trialValidation{
-		validationMetrics: msg.ValidationMetrics,
-	})
-	op, metrics, err := t.sequencer.WorkloadCompleted(msg, isBestValidation)
+	op, metrics, err := t.sequencer.WorkloadCompleted(msg)
 	switch {
 	case err != nil:
 		return errors.Wrap(err, "failed to pass completed message to sequencer")

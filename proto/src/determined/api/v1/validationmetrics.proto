@@ -27,4 +27,6 @@ message UpdateValidationMetricsRequest {
 message UpdateValidationMetricsResponse {
   // The updated validation metrics.
   determined.modelmetrics.v1.ValidationMetrics validation_metrics = 1;
+  // is_experiment_best returns if the validation metrics is the experiment best.
+  bool is_experiment_best = 2;
 }

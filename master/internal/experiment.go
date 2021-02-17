@@ -32,9 +32,6 @@ type (
 		metrics interface{}
 		trialSnapshot
 	}
-	trialValidation struct {
-		validationMetrics *workload.ValidationMetrics
-	}
 	trialCompletedWorkload struct {
 		completedMessage workload.CompletedMessage
 		// unitsCompleted is passed as a float because while the searcher will only request integral
@@ -217,10 +214,6 @@ func (e *experiment) Receive(ctx *actor.Context) error {
 			ctx.Log().WithError(err).Error("failed to save experiment progress")
 		}
 		ctx.Tell(e.hpImportance, hpimportance.ExperimentProgress{ID: e.ID, Progress: progress})
-	case trialValidation:
-		if msg.validationMetrics != nil {
-			ctx.Respond(e.isBestValidation(*msg.validationMetrics))
-		}
 	case sendNextWorkload:
 		// Pass this back to the trial; this message is just used to allow the trial to synchronize
 		// with the searcher.
@@ -464,6 +457,7 @@ func (e *experiment) checkpointForCreate(op searcher.Create) (*model.Checkpoint,
 }
 
 func (e *experiment) isBestValidation(metrics workload.ValidationMetrics) bool {
+	// TODO: remove this.
 	metricName := e.Config.Searcher.Metric
 	validation, err := metrics.Metric(metricName)
 	if err != nil {

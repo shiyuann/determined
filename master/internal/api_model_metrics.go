@@ -78,6 +78,7 @@ func (a *apiServer) UpdateValidationMetrics(
 	log.Infof("updating validation metrics %s (trial %d, batch %d) state %s",
 		req.ValidationMetrics.Uuid, req.ValidationMetrics.TrialId,
 		req.ValidationMetrics.TotalBatches, req.ValidationMetrics.State)
+
 	modelV, err := model.ValidationMetricsFromProto(req.ValidationMetrics)
 	if err != nil {
 		return nil, errors.Wrapf(
@@ -85,11 +86,29 @@ func (a *apiServer) UpdateValidationMetrics(
 			req.ValidationMetrics.Uuid, req.ValidationMetrics.TrialId,
 			req.ValidationMetrics.TotalBatches)
 	}
+
 	err = a.m.db.UpdateValidation(
 		int(req.ValidationMetrics.TrialId), int(req.ValidationMetrics.TotalBatches), *modelV)
-	return &apiv1.UpdateValidationMetricsResponse{ValidationMetrics: req.ValidationMetrics},
-		errors.Wrapf(err,
+	if err != nil {
+		return nil, errors.Wrapf(err,
 			"error updating validation metrics %s (trial %d, batch %d) in database",
 			req.ValidationMetrics.Uuid, req.ValidationMetrics.TrialId,
 			req.ValidationMetrics.TotalBatches)
+	}
+
+	bestValidation, err := a.m.db.GetExperimentBestValidation(int(req.ValidationMetrics.ExperimentId))
+	if err != nil {
+		return nil, errors.Wrapf(err, "error getting best validation of experiment %d",
+			req.ValidationMetrics.ExperimentId)
+	}
+
+	isBest := false
+	if bestValidation.TrialID == modelV.TrialID && bestValidation.TotalBatches == modelV.TotalBatches {
+		isBest = true
+	}
+
+	return &apiv1.UpdateValidationMetricsResponse{
+		ValidationMetrics: req.ValidationMetrics,
+		IsExperimentBest:  isBest,
+	}, nil
 }
