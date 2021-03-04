@@ -9,5 +9,6 @@
    keras
    estimator
    pytorch
+   pytorch-lightning
    trial_context
    experimental

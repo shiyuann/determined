@@ -186,6 +186,11 @@ MNIST <pytorch-mnist-tutorial>` and :ref:`tf.keras MNIST
       -  :download:`gan_mnist_pytorch.tgz
          </examples/gan_mnist_pytorch.tgz>`
 
+   -  -  PyTorch Lightning
+      -  MNIST
+      -  :download:`gan_mnist_lightning.tgz
+         </examples/gan_mnist_lightning.tgz>`
+
    -  -  TensorFlow (tf.keras)
       -  MNIST
       -  :download:`dcgan_tf_keras.tgz </examples/dcgan_tf_kera.tgz>`

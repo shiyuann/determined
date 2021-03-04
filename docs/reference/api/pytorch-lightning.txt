@@ -1,0 +1,62 @@
+##############################
+ determined.pytorch_lightning
+##############################
+
+.. _lightning-trial:
+
+*************************************************
+ ``determined.pytorch_lightning.LightningTrial``
+*************************************************
+
+.. autoclass:: determined.pytorch_lightning.LightningTrial
+   :members:
+   :exclude-members: trial_controller_class, trial_context_class
+   :inherited-members:
+   :member-order: bysource
+   :special-members: __init__
+
+.. _lightning-data-loading:
+
+Data Loading
+============
+
+To load your data into training, pass in your data loaders or data
+module to
+:meth:`determined.pytorch_lightning.LightningTrialContext.fit()`.
+
+Trial Context
+=============
+
+:class:`determined.pytorch_lightning.LightningTrialContext` subclasses
+:class:`determined.TrialContext`. It provides useful methods for writing
+``Trial`` subclasses.
+
+.. autoclass:: determined.pytorch_lightning.LightningTrialContext
+   :members:
+
+Reducing Metrics
+================
+
+Determined supports proper reduction of arbitrary training and
+validation metrics, even during distributed training, by allowing users
+to define custom reducers. Currently, we only support averaging as the
+reducing method.
+
+Callbacks
+=========
+
+To use callbacks during training, pass in ``Trainer`` callbacks to
+:meth:`determined.pytorch_lightning.LightningTrialContext.init_trainer()`.
+
+***********
+ Debugging
+***********
+
+Please see :ref:`model-debug`.
+
+**********
+ Examples
+**********
+
+-  :download:`gan_mnist_lightning.tgz
+   </examples/gan_mnist_lightning.tgz>`
